@@ -11,16 +11,16 @@ public with sharing class DMLOperationsTest {
 
     @IsTest
     static void testInsertNewAccount() {
-         // Call the method to test
+        // Call the method to test
         Id newAccountId = DMLOperations.insertNewAccount();
 
-         // Assert that an ID was returned
+        // Assert that an ID was returned
         System.assertNotEquals(null, newAccountId, 'The new account ID should not be null');
 
-         // Retrieve the inserted account from the database
+        // Retrieve the inserted account from the database
         Account retrievedAccount = [SELECT Id, Name FROM Account WHERE Id = :newAccountId];
 
-         // Assert that the Account was successfully inserted
+        // Assert that the Account was successfully inserted
         System.assertNotEquals(null, retrievedAccount, 'The retrieved account should not be null');
         System.assertEquals(newAccountId, retrievedAccount.Id, 'The IDs should match');
     }
