@@ -32,33 +32,16 @@ public with sharing class DMLOperations {
         // Create a new Account instance
         Account newAccount = new Account();
 
-        try {
-            // Ensure the required fields are set for the Account object
-            newAccount.Name = 'Test Account 01 ' + Datetime.now().getTime(); // Unique name based on current timestamp
-    
-            // Insert the Account into the database
-            insert newAccount;
-    
-            // After successful insertion, ensure the Account Id is not null
-            if (newAccount.Id != null) {
-                System.debug('Account inserted successfully with Id: ' + newAccount.Id + ', Name: ' + newAccount.Name + ', Account Number: ' + newAccount.AccountNumber);
-                // Return the Id of the inserted Account
-                return newAccount.Id;
-            } else {
-                System.debug('Account insertion failed: Account Id is null.');
-                return null; // Handle the unexpected case where ID is null
-            }
-    
-        } catch (DmlException e) {
-            // Log the DML exception with a debug statement
-            System.debug('Error inserting Account: ' + e.getMessage());
-    
-            // Return null to indicate that insertion failed
-            return null;
-        }
-    }
-}
+        // Ensure the required fields are set for the Account object
+        newAccount.Name = 'Test Account 01 ' + Datetime.now().getTime(); // Unique name based on current timestamp
+        newAccount.AccountNumber = '1234'; 
 
+        // Insert the Account into the database
+        insert newAccount;
+
+        return newAccount.Id;
+    
+    }
 
 
     /**
@@ -75,8 +58,6 @@ public with sharing class DMLOperations {
         insert account; 
 
     }
-
-
     
     /**
      * Question 3
@@ -99,8 +80,8 @@ public with sharing class DMLOperations {
         // Insert the Contact into the database
         insert contact; 
 
-        // Return the Id of the newly created Contact
-        System.debug('Question 1 : ' + 'Account Id: '+ newAccount.Id + 'Account FirstName: ' + newAccount.FirstName + 'Account LastName: ' + newAccount.LastName+ 'Account Email: ' + newAccount.Email);
+        // // Return the Id of the newly created Contact
+        // System.debug('Question 1 : ' + 'Account Id: '+ newAccount.Id + 'Account FirstName: ' + newAccount.FirstName + 'Account LastName: ' + newAccount.LastName+ 'Account Email: ' + newAccount.Email);
 
         return contact.Id;
     }
@@ -181,7 +162,7 @@ public with sharing class DMLOperations {
 
         for(Opportunity opp : opportunities) {
             opp.StageName = 'Qualification';
-            opp.CloseDate = System.now().addMonths(3);
+            opp.CloseDate = Date.today().addMonths(3);
             opp.Amount = 50000;
         }
 
@@ -199,18 +180,44 @@ public with sharing class DMLOperations {
      * @param oppNames The list of Opportunity names.
      */
     public static void upsertOpportunities(String accountName, List<String> oppNames) {
-        // Loop through each Opportunity name
-            // Create an Opportunity with the given name
-            // Add the Opportunity to the list
-            for(String opp : oppNames){
-                Opportunity newOpp = new Opportunity(Name = oppName, AccountId = acc.Id, StageName = 'Prospecting', CloseDate = Date.today().addMonths(1));
-                newOpps.add(newOpp);
+        
+            // Query to check if account already exists
+            List<Account> accountList  = [SELECT Id  FROM Account WHERE Name = :accountName];
+            Account newAccount; 
+
+            // If not exist then create account with account name, ceate the new account
+            if(accountList.isEmpty()){
+                newAccount = new Account(Name = accountName);
+                upsert newAccount; // Upsert to insert the account if it doesn't exist
+            } else {
+                newAccount = accountList[0]; // Assign the queried account
             }
 
-            // Upsert the list of Opportunities
-            upsert newOpps;
-    } 
-    
+            // Query to get exisiting opportunities 
+            List<Opportunity> existingOpportunities = [SELECT Id, Name FROM Opportunity WHERE Name IN : oppNames];
+            // Create a list of Opportunities
+            List<Opportunity> oppsToProcess = new List<Opportunity>();  
+
+            // Loop through each Opportunity name
+            for (String oppName : oppNames) {
+                // Create an Opportunity with the given name
+                Opportunity newOpp = new Opportunity(Name = oppName, AccountId = newAccount.Id, StageName = 'Prospecting', CloseDate = Date.today());
+        
+                for (Opportunity existingOpp : existingOpportunities) {
+                    if (existingOpp.Name == oppName) {
+                        newOpp.Id = existingOpp.Id;
+                        break;
+                    }
+                }
+
+                // Add the Opportunity to the list
+                oppsToProcess.add(newOpp);
+            }
+        
+            // Upsert the list of opportunities (insert new or update existing)
+            upsert oppsToProcess;
+        }
+
 
     
     /**
@@ -229,8 +236,8 @@ public with sharing class DMLOperations {
 
 		// if the Account exists, update the description
 		// otherwise, create a new Account and set the description
-        if(!account.isEmpty()){
-            account = account[0];
+        if(!accounts.isEmpty()){
+            account = accounts[0];
             account.description = 'Updated Account';
         }else{
             account.Name = accountName;
@@ -239,6 +246,8 @@ public with sharing class DMLOperations {
 
 		// Upsert the Account
         upsert account; 
+
+        // Return the upserted Account
         return account;  
     }
 
@@ -275,7 +284,7 @@ public with sharing class DMLOperations {
      */
     public static void insertAndDeleteLeads(List<String> leadNames) {
 
-        List<Lead> lead = new List<Lead>();
+        List<Lead> leads= new List<Lead>();
 
         // Loop through each Lead name
         for(String leadName : leadNames){
